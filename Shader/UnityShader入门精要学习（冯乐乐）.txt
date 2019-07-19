@@ -1,0 +1,93 @@
+一.基础
+1.ShaderLab属性类型
+
+属性类型				默认值的定义语法　							例子
+Int						number	            						_Int("Int",Int)=2
+Float					number										_Float("Float",Float)=1.5
+Range(min,max)			number										_Range("Range",Range(0.0,5.0))=3.0
+Color					(number,number,number,number)				_Color("Color",Color)=(1,1,1,1)
+Vector	(				number,number,number,number)				_Vector("Vector",Vector)=(2,3,6,1)
+2D						"defaulttexture" {}							_2D("2D",2D)="" {}
+Cube					"defaulttexture" {}							_Cube("Cube",Cube)="white" {}
+3D						"defaulttexture" {}							_3D("3D",3D)="black" {}
+
+
+
+2.ShaderLab属性类型和Cg变量类型的匹配关系
+
+ShaderLab属性类型			Cg变量类型
+Color,Vector				float4,half4,fixed4
+Range,Float					float,half,fixed
+2D							sampler2D
+Cube						samplerCube
+3D							sampler3D
+
+ps:
+float 32位浮点数 （一般不推荐）
+half 16位浮点数 （【-6w，+6w】、精确小数点3.3 一般推荐使用）
+int   32位整形数
+fixed 12位浮点数 (推荐 颜色和向量单位 【-2,2】)
+
+
+
+
+3.常见的渲染状态设置选项
+
+状态名称		设置指令															解释
+Cull			Cull Back|Front|Off													设置剔除模式:剔除背面/正面/关闭剔除
+ZTest			ZTest Less Greater|LEqual|GEqual|Equal|NotEqual|Always				设置深度测试时使用的函数
+ZWrite			ZWrite On|Off														开启/关闭深度写入
+Blend			Blend SrcFactor DstFactor											开启并设置混合模式
+ps:透明混合（灵魂状态） 关掉ZWrite
+
+
+（subshader 包含pass）
+4.															表3.3　　SubShader的标签类型
+标签类型						说明																																								例子
+Queue							控制渲染顺序,指定该物体属于哪一个渲染队列,通过这种方式可以保证所有的透明物体可以在所有不透明物体后面被渲染,我们也可以自定义使用的渲染队列来控制物体的渲染顺序	  	Tags {"Queue" = "Transparent"}
+RenderType						对着色器进行分类,例如这是一个不透明的着色器,或是一个透明的着色器等.这可以被用于着色器替换(Shader Replacement)功能													Tags {"RenderType" = "Opaque"}
+DisableBatching					一些SubShader在使用Unity的批处理功能时会出现问题,例如使用了模型空间下的坐标进行顶点动画.这时可以通过该标签来直接指明是否对该SubShader使用批处理						Tags {"DisableBatching" = "True"}
+ForceNoShadowCasting			控制使用该SubShader的物体是否会投射阴影																																Tags {"ForceNoShadowCasting" = "True"}
+IgnoreProjector					如果该标签值为"True",那么使用该SubShader的物体将不会受Projector的影响.通常用于半透明物体																			Tags {"IgnoreProjector" = "True"}
+CanUseSpriteAtlas				当该SubShader是用于精灵(sprites)时,将该标签设为"False"																												Tags {"CanUseSpriteAtlas" = "False"}
+PreviewType						指明材质面板将如何预览该材质.默认情况下,材质将显示为一个球形,我们可以通过把该标签的值设为"Plane""SkyBox"来改变预览类型												Tags {"PreviewType" = "Plane"}
+
+
+Unity提前定义的5个渲染队列
+名称			队列索引号			描述
+Background		1000			这个渲染队列会在任何其他队列之前被渲染,我们通常使用该队列来渲染那些需要绘制在背景上的物体
+Geometry		2000			默认的渲染队列,大多数物体都使用这个队列.不透明物体使用这个队列
+AlphaTest		2450			需要透明度测试的物体使用这个队列.在Unity5中它从Geometry队列中被单独分出来,这是因为在所有不透明物体渲染之后再渲染它们会更加高效
+Transparent		3000			这个队列中的物体会在所有Geometry和AlphaTest物体渲染后,再按从后往前的顺序进行渲染.任何使用了透明度混合(例如关闭了深度写入的Shader)的物体都应该使用该队列
+Overlay			4000			该队列用于实现一些叠加效果.任何需要在最后渲染的物体都应该使用该队列
+
+
+
+
+
+5.							表3.4　　Pass的标签类型
+标签类型			说明																																							例子
+LightMode			定义该Pass在Unity的渲染流水线中的角色																													Tags {"LightMode" = "ForwardBase"}
+RequireOptions		用于指定当满足某些条件时才渲染该Pass,它的值是一个由空格分隔的字符串.目前,Unity支持的选项有:SoftVegetation.在后面的版本中,可能会增加更多的选项			Tags {"RequireOptions" = "SoftVegetation"}
+
+
+				表9.1　　LightMode标签支持的渲染路径设置选项
+标签名													描述
+Always												不管使用那种渲染路径,该Pass总是会被渲染,但不会计算任何光照
+ForwardBase											用于前向渲染.该Pass会计算环境光,最重要的平行光,逐顶点/SH光源和Lightmaps
+ForwardAdd											用于前向渲染.该Pass会计算额外的逐像素光源,每个Pass对应一个光源
+Deferred											用于延迟渲染.该Pass会渲染G缓冲(G-buffer)
+ShadowCaster										把物体的深度信息渲染到阴影映射纹理(shadowmap)或一张深度纹理中
+PrepassBase											用于遗留的延迟渲染.该Pass会渲染法线和高光反射的指数部分
+PrepassFinal										用于遗留的延迟渲染.该Pass通过合并纹理,光照和自发光来渲染得到最后的颜色
+Vertex,VertexLMRGBM和VertexLM						用于遗留的顶点照明渲染
+
+6.
+							表11.1　　Unity内置的时间变量
+名称					类型						描述
+_Time					float4			t是自该场景加载开始所经过的时间,4个分量的值分别是(t/20,t,2t,3t)
+_SinTime				float4			t是时间的正弦值,4个分量的值分别是(t/8,t/4,t/2,t)
+_CosTime				float4			t是时间的余弦值,4个分量的值分别是(t/8,t/4,t/2,t)
+unity_DeltaTime			float4			dt是时间增量,4个分量的值分别是(dt,1/dt,smoothDt,1/smoothDt)
+
+ 
